@@ -1,27 +1,69 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as uuid from 'uuid';
-import { EmailService } from 'src/email/email.service';
+import { EmailService } from '../../src/email/email.service';
 import { UserInfo } from './UserInfo';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from './users.entity';
+import { Repository, Connection, EntityManager } from 'typeorm';
+
 @Injectable()
 export class UsersService {
-  constructor(private emailService: EmailService) {}
+  constructor(
+    private emailService: EmailService,
+    @InjectRepository(UserEntity)
+    private usersRepository: Repository<UserEntity>,
+    private connection: Connection,
+  ) {}
   async createUser(createUserDto: CreateUserDto) {
-    this.checkUserExists(createUserDto.email);
+    const userExist = await this.checkUserExists(createUserDto.email);
+    if (userExist) {
+      throw new UnprocessableEntityException(
+        '해당 이메일로는 가입할 수 없습니다.',
+      );
+    }
 
     const signupVerifyToken = uuid.v1();
 
-    this.saveUser(createUserDto, signupVerifyToken);
+    this.saveUserUsingTransaction(createUserDto, signupVerifyToken);
     await this.sendMemberJoinEmail(createUserDto.email, signupVerifyToken);
   }
 
-  private checkUserExists(email: string) {
-    return false; //DB 연동 후 구현
+  private async checkUserExists(emailAddress: string): Promise<boolean> {
+    console.log(emailAddress);
+    const user = await this.usersRepository.findOneBy({ email: emailAddress });
+    console.log(user);
+    return user !== null;
   }
 
-  private saveUser(dto: CreateUserDto, signupVerifyToken: string) {
-    return; //DB 연동 후 구현
+  private async saveUserUsingTransaction(
+    dto: CreateUserDto,
+    signupVerifyToken: string,
+  ) {
+    await this.connection.transaction(async (manager: EntityManager) => {
+      const user = new UserEntity();
+      user.name = dto.name;
+      user.email = dto.email;
+      user.password = dto.password;
+      user.signupVerifyToken = signupVerifyToken;
+
+      await manager.save(user);
+    });
   }
+
+  // private async saveUser(dto: CreateUserDto, signupVerifyToken: string) {
+  //   const user = new UserEntity();
+  //   user.name = dto.name;
+  //   user.email = dto.email;
+  //   user.password = dto.password;
+  //   user.signupVerifyToken = signupVerifyToken;
+  //   console.log(user);
+  //   await this.usersRepository.save(user);
+  // }
 
   private async sendMemberJoinEmail(email: string, signupVerifyToken: string) {
     await this.emailService.sendMemberJoinVerification(
@@ -51,5 +93,13 @@ export class UsersService {
     // 2. 조회된 데이터를 UserInfo 타입으로 응답
 
     throw new Error('Method not implemented.');
+  }
+
+  findOne(id: number) {
+    throw new Error('Method not implemented');
+  }
+
+  findAll() {
+    throw new Error('Method not implemented');
   }
 }

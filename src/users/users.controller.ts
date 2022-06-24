@@ -1,17 +1,26 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UserLoginDto } from './dto/user-login.dto';
-import { UserInfo } from './UserInfo';
+import { ValidationPipe } from './validation.pipe';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  async createUser(@Body() dto: CreateUserDto): Promise<void> {
-    await this.usersService.createUser(dto);
+  async createUser(@Body(ValidationPipe) dto: CreateUserDto): Promise<void> {
+    return await this.usersService.createUser(dto);
     // return this.usersService.create(createUserDto);
   }
 
@@ -27,8 +36,25 @@ export class UsersController {
     return await this.usersService.login(email, password);
   }
 
-  @Get('/:id')
-  async getUserInfo(@Param('id') userId: string): Promise<UserInfo> {
-    return await this.usersService.getUserInfo(userId);
+  // @Get('/:id')
+  // async getUserInfo(@Param('id') userId: string): Promise<UserInfo> {
+  //   return await this.usersService.getUserInfo(userId);
+  // }
+
+  @Get(':id')
+  findOne(
+    @Param('id', ValidationPipe)
+    id: number,
+  ) {
+    return this.usersService.findOne(id);
+  }
+
+  @Get()
+  findAll(
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    console.log(offset, limit);
+    return this.usersService.findAll();
   }
 }
