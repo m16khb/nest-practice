@@ -150,11 +150,19 @@ var UsersService = /** @class */ (function () {
     };
     UsersService.prototype.verifyEmail = function (signupVerifyToken) {
         return __awaiter(this, void 0, void 0, function () {
+            var user;
             return __generator(this, function (_a) {
-                // TODO
-                // 1. DB에서 signupVerifyToken으로 회원 가입 처리중인 유저가 있는지 조회하고 없다면 에러 처리
-                // 2. 바로 로그인 상태가 되도록 JWT를 발급
-                throw new Error('Method not implemented.');
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.usersRepository.findOneBy({
+                            signupVerifyToken: signupVerifyToken,
+                        })];
+                    case 1:
+                        user = _a.sent();
+                        if (!user) {
+                            throw new common_1.NotFoundException('유저가 존재하지 않습니다.');
+                        }
+                        return [2 /*return*/, this.authService.login({})];
+                }
             });
         });
     };
